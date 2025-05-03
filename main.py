@@ -5,24 +5,27 @@ from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.popup import Popup
-from kivy.uix.filechooser import FileChooserIconView
 from kivy.uix.spinner import Spinner
+from kivy.uix.anchorlayout import AnchorLayout
+from kivy.uix.gridlayout import GridLayout
 import pickle
 import os
 from datetime import datetime
-from kivy.uix.anchorlayout import AnchorLayout
-from kivy.uix.gridlayout import GridLayout
+from plyer import filechooser  # <-- Android file picker
+from kivy.utils import platform
 
-
-data_file = 'data.pkl'
-
+if platform == 'android':
+    from android.storage import app_storage_path
+    app_path = app_storage_path()
+    data_file = os.path.join(app_path, 'data.pkl')
+else:
+    data_file = os.path.join(os.getcwd(), 'data.pkl')
 
 def load_data():
     if os.path.exists(data_file):
         with open(data_file, 'rb') as f:
             return pickle.load(f)
     return []
-
 
 def save_data(data):
     with open(data_file, 'wb') as f:
@@ -31,11 +34,9 @@ def save_data(data):
 class MainScreen(BoxLayout):
     def __init__(self, **kwargs):
         super(MainScreen, self).__init__(**kwargs)
-        
         anchor = AnchorLayout(anchor_x='center', anchor_y='center')
-
         button_layout = GridLayout(cols=1, spacing=20, size_hint=(None, None))
-        button_layout.size = (200, 120) 
+        button_layout.size = (200, 120)
 
         register_btn = Button(text='Register', size_hint=(None, None), size=(200, 50), on_press=self.register_screen)
         verify_btn = Button(text='Verify', size_hint=(None, None), size=(200, 50), on_press=self.verify_screen)
@@ -56,7 +57,7 @@ class MainScreen(BoxLayout):
 
     def back_to_main(self, *args):
         self.clear_widgets()
-        self.__init__()  
+        self.__init__()
 
 class RegisterScreen(BoxLayout):
     def __init__(self, go_back_callback=None, **kwargs):
@@ -113,16 +114,12 @@ class RegisterScreen(BoxLayout):
         popup.open()
 
     def select_fp(self, instance):
-        content = FileChooserIconView()
-        popup = Popup(title='Select Fingerprint', content=content, size_hint=(0.9, 0.9))
+        def got_fp_path(selection):
+            if selection:
+                self.fp_path = selection[0]
+                self.show_popup("Fingerprint Selected", f"Selected file:\n{self.fp_path}")
 
-        def file_selected(*args):
-            if content.selection:
-                self.fp_path = content.selection[0]
-                popup.dismiss()
-
-        content.bind(on_submit=file_selected)
-        popup.open()
+        filechooser.open_file(on_selection=got_fp_path)
 
     def submit(self, instance):
         if not self.fp_path:
@@ -169,17 +166,12 @@ class VerifyScreen(BoxLayout):
         self.add_widget(Button(text='Back', on_press=self.back_to_main))
 
     def select_fp(self, instance):
-        content = FileChooserIconView()
-        popup = Popup(title='Select Fingerprint', content=content, size_hint=(0.9, 0.9))
-
-        def file_selected(*args):
-            if content.selection:
-                fp_path = content.selection[0]
-                popup.dismiss()
+        def got_fp_path(selection):
+            if selection:
+                fp_path = selection[0]
                 self.verify_fingerprint(fp_path)
 
-        content.bind(on_submit=file_selected)
-        popup.open()
+        filechooser.open_file(on_selection=got_fp_path)
 
     def verify_fingerprint(self, path):
         for record in self.data:
