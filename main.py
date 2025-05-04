@@ -11,7 +11,7 @@ from kivy.uix.gridlayout import GridLayout
 import pickle
 import os
 from datetime import datetime
-from plyer import filechooser  # <-- Android file picker
+from plyer import filechooser
 from kivy.utils import platform
 
 if platform == 'android':
@@ -174,8 +174,9 @@ class VerifyScreen(BoxLayout):
         filechooser.open_file(on_selection=got_fp_path)
 
     def verify_fingerprint(self, path):
+        selected_filename = os.path.basename(path)
         for record in self.data:
-            if record['fingerprint'] == path:
+            if os.path.basename(record['fingerprint']) == selected_filename:
                 self.show_popup("Verified", f"{record['name']}\n({record['employee_id']})\nVerified at {datetime.now()}")
                 return
         self.show_popup("Unknown", f"Fingerprint not registered\nVerified at {datetime.now()}")
