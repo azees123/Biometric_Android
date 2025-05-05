@@ -19,7 +19,7 @@ from kivy.graphics.texture import Texture
 user_db = {}
 APP_PATH = app_storage_path()
 os.makedirs(APP_PATH, exist_ok=True)
-DB_FILE = os.path.join(APP_PATH, 'user_db.pkl')
+DB_FILE = os.path.join(APP_PATH, 'data.pkl')
 
 class FingerprintApp(App):
     def build(self):
