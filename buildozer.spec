@@ -13,7 +13,7 @@ package.domain = org.fingerprint.app
 source.dir = .
 
 # (list) Source files to include (let empty to include all the files)
-source.include_exts = py,png,jpg,kv,atlas,pkl
+source.include_exts = py,png,jpg,kv,atlas
 
 
 # (list) List of inclusions using pattern matching
@@ -38,8 +38,7 @@ version = 0.1
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy,android,jnius,plyer,pillow
-
+requirements = python3,kivy,android,pyjnius,pillow
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
@@ -98,7 +97,7 @@ fullscreen = 1
 # (list) Permissions
 # (See https://python-for-android.readthedocs.io/en/latest/buildoptions/#build-options-1 for all the supported syntaxes and properties)
 #android.permissions = android.permission.INTERNET, (name=android.permission.WRITE_EXTERNAL_STORAGE;maxSdkVersion=18)
-permissions = READ_MEDIA_IMAGES
+android.permissions = CAMERA, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
 
 # (list) features (adds uses-feature -tags to manifest)
 #android.features = android.hardware.usb.host
@@ -110,7 +109,7 @@ android.api = 31
 android.minapi = 21
 
 # (int) Android SDK version to use
-android.sdk = 31
+android.sdk = 20
 
 # (str) Android NDK version to use
 android.ndk = 25b
@@ -210,9 +209,6 @@ android.accept_sdk_license = True
 # contains an 'androidx' package, or any package from Kotlin source.
 # android.enable_androidx requires android.api >= 28
 #android.enable_androidx = True
-
-android.enable_androidx = True
-android.use_androidx = True
 
 # (list) add java compile options
 # this can for example be necessary when importing certain java libraries using the 'android.gradle_dependencies' option
