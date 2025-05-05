@@ -98,7 +98,7 @@ fullscreen = 1
 # (list) Permissions
 # (See https://python-for-android.readthedocs.io/en/latest/buildoptions/#build-options-1 for all the supported syntaxes and properties)
 #android.permissions = android.permission.INTERNET, (name=android.permission.WRITE_EXTERNAL_STORAGE;maxSdkVersion=18)
-permissions = WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
+permissions = READ_MEDIA_IMAGES
 
 # (list) features (adds uses-feature -tags to manifest)
 #android.features = android.hardware.usb.host
@@ -110,7 +110,7 @@ android.api = 31
 android.minapi = 21
 
 # (int) Android SDK version to use
-android.sdk = 20
+android.sdk = 31
 
 # (str) Android NDK version to use
 android.ndk = 25b
