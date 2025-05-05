@@ -14,6 +14,7 @@ from datetime import datetime
 from plyer import filechooser
 from kivy.utils import platform
 
+# Request permissions for Android if required
 if platform == 'android':
     from android.permissions import request_permissions, Permission
     request_permissions([Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE])
@@ -24,19 +25,18 @@ if platform == 'android':
 else:
     data_file = os.path.join(os.getcwd(), 'data.pkl')
 
-
+# Load and Save Data
 def load_data():
     if os.path.exists(data_file):
         with open(data_file, 'rb') as f:
             return pickle.load(f)
     return []
 
-
 def save_data(data):
     with open(data_file, 'wb') as f:
         pickle.dump(data, f)
 
-
+# Main Screen UI
 class MainScreen(BoxLayout):
     def __init__(self, **kwargs):
         super(MainScreen, self).__init__(**kwargs)
@@ -65,7 +65,7 @@ class MainScreen(BoxLayout):
         self.clear_widgets()
         self.__init__()
 
-
+# Register Screen UI
 class RegisterScreen(BoxLayout):
     def __init__(self, go_back_callback=None, **kwargs):
         super(RegisterScreen, self).__init__(orientation='vertical', **kwargs)
@@ -128,6 +128,7 @@ class RegisterScreen(BoxLayout):
             else:
                 self.show_popup("Error", "No file selected")
 
+        # Open file chooser to select fingerprint image
         filechooser.open_file(on_selection=got_fp_path)
 
     def submit(self, instance):
@@ -166,13 +167,17 @@ class RegisterScreen(BoxLayout):
         if self.go_back_callback:
             self.go_back_callback()
 
-
+# Verify Screen UI
 class VerifyScreen(BoxLayout):
     def __init__(self, go_back_callback=None, **kwargs):
         super(VerifyScreen, self).__init__(orientation='vertical', **kwargs)
         self.go_back_callback = go_back_callback
         self.data = load_data()
-        self.add_widget(Button(text='Select Fingerprint to Verify', on_press=self.select_fp))
+
+        # Button to select fingerprint for verification
+        self.select_fp_button = Button(text='Select Fingerprint to Verify', on_press=self.select_fp)
+        self.add_widget(self.select_fp_button)
+
         self.add_widget(Button(text='Back', on_press=self.back_to_main))
 
     def select_fp(self, instance):
@@ -183,12 +188,14 @@ class VerifyScreen(BoxLayout):
             else:
                 self.show_popup("Error", "No file selected")
 
+        # Open file chooser to select fingerprint image
         filechooser.open_file(on_selection=got_fp_path)
 
     def verify_fingerprint(self, path):
         matched = False
         selected_filename = os.path.basename(path)
 
+        # Loop through registered data and match fingerprints
         for record in self.data:
             if os.path.basename(record['fingerprint']) == selected_filename:
                 self.show_popup("Verified", f"{record['name']} ({record['employee_id']})\nVerified at {datetime.now()}")
@@ -206,11 +213,10 @@ class VerifyScreen(BoxLayout):
         if self.go_back_callback:
             self.go_back_callback()
 
-
+# Main App Class
 class BiometricApp(App):
     def build(self):
         return MainScreen()
-
 
 if __name__ == '__main__':
     BiometricApp().run()
