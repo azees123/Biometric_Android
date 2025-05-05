@@ -9,11 +9,10 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.popup import Popup
 from kivy.uix.spinner import Spinner
 from kivy.uix.filechooser import FileChooserIconView
-from kivy.core.window import Window
-from kivy.core.image import Image as CoreImage
+from kivy.uix.scrollview import ScrollView
+from kivy.uix.gridlayout import GridLayout
 from android.storage import app_storage_path
-from kivy.graphics.texture import Texture
-from android.permissions import request_permissions, Permission
+from kivy.core.window import Window
 
 user_db = {}
 temporary_fingerprint_data = None
@@ -27,7 +26,7 @@ class FingerprintApp(App):
     def build(self):
         self.load_user_db()
 
-        self.layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
+        self.layout = BoxLayout(orientation='vertical', padding=[10, 20], spacing=15, size_hint=(1, 1))
 
         self.title_label = Label(text="Fingerprint Authentication System", size_hint=(1, 0.1))
         self.layout.add_widget(self.title_label)
@@ -107,7 +106,7 @@ class FingerprintApp(App):
         close_button.bind(on_press=self.close_alert_popup)
         popup_layout.add_widget(close_button)
 
-        self.popup = Popup(title="Admin Alert", content=popup_layout, size_hint=(0.8, 0.4), auto_dismiss=True)
+        self.popup = Popup(title="Admin Alert", content=popup_layout, size_hint=(0.85, 0.45), auto_dismiss=True)
         self.popup.open()
 
     def close_alert_popup(self, instance):
@@ -134,7 +133,8 @@ class FingerprintApp(App):
             return False
 
     def register_user(self, instance):
-        self.popup_register = BoxLayout(orientation='vertical', spacing=10)
+        scroll_layout = GridLayout(cols=1, spacing=10, size_hint_y=None)
+        scroll_layout.bind(minimum_height=scroll_layout.setter('height'))
 
         self.name_input = TextInput(hint_text="Enter your name", size_hint=(1, None), height=40)
         self.phone_input = TextInput(hint_text="Enter your phone number", size_hint=(1, None), height=40)
@@ -142,17 +142,20 @@ class FingerprintApp(App):
         self.dob_spinner = Spinner(text="Select DOB", values=["2025", "2024", "2023", "2022", "2021", "2020"], size_hint=(1, None), height=40)
         self.aadhar_input = TextInput(hint_text="Enter Aadhar number", size_hint=(1, None), height=40)
 
-        self.popup_register.add_widget(self.name_input)
-        self.popup_register.add_widget(self.phone_input)
-        self.popup_register.add_widget(self.reg_no_input)
-        self.popup_register.add_widget(self.dob_spinner)
-        self.popup_register.add_widget(self.aadhar_input)
+        scroll_layout.add_widget(self.name_input)
+        scroll_layout.add_widget(self.phone_input)
+        scroll_layout.add_widget(self.reg_no_input)
+        scroll_layout.add_widget(self.dob_spinner)
+        scroll_layout.add_widget(self.aadhar_input)
 
         submit_button = Button(text="Continue", size_hint=(1, None), height=50)
         submit_button.bind(on_press=lambda x: self.capture_and_register())
-        self.popup_register.add_widget(submit_button)
+        scroll_layout.add_widget(submit_button)
 
-        self.popup = Popup(title="Register User", content=self.popup_register, size_hint=(0.8, 0.7))
+        scroll_view = ScrollView(size_hint=(1, 1))
+        scroll_view.add_widget(scroll_layout)
+
+        self.popup = Popup(title="Register User", content=scroll_view, size_hint=(0.9, 0.9))
         self.popup.open()
 
     def capture_and_register(self):
@@ -176,16 +179,20 @@ class FingerprintApp(App):
         self.open_filechooser(after_image_selection)
 
     def verify_fingerprint(self, instance):
-        self.popup_verify = BoxLayout(orientation='vertical', spacing=10)
+        scroll_layout = GridLayout(cols=1, spacing=10, size_hint_y=None)
+        scroll_layout.bind(minimum_height=scroll_layout.setter('height'))
 
         self.reg_no_verify_input = TextInput(hint_text="Enter registration number", size_hint=(1, None), height=40)
-        self.popup_verify.add_widget(self.reg_no_verify_input)
+        scroll_layout.add_widget(self.reg_no_verify_input)
 
         verify_btn = Button(text="Verify", size_hint=(1, None), height=50)
         verify_btn.bind(on_press=self.perform_fingerprint_verification)
-        self.popup_verify.add_widget(verify_btn)
+        scroll_layout.add_widget(verify_btn)
 
-        self.popup = Popup(title="Verify Fingerprint", content=self.popup_verify, size_hint=(0.8, 0.6))
+        scroll_view = ScrollView(size_hint=(1, 1))
+        scroll_view.add_widget(scroll_layout)
+
+        self.popup = Popup(title="Verify Fingerprint", content=scroll_view, size_hint=(0.8, 0.6))
         self.popup.open()
 
     def perform_fingerprint_verification(self, instance):
@@ -198,13 +205,13 @@ class FingerprintApp(App):
             self.show_popup_message("Access Denied", "Fingerprint verification failed.")
 
     def show_popup_message(self, title, message):
-        popup_message = BoxLayout(orientation='vertical', padding=10)
+        popup_message = BoxLayout(orientation='vertical', padding=10, spacing=10)
         popup_message.add_widget(Label(text=message))
         close_button = Button(text="Close", size_hint=(1, None), height=50)
         close_button.bind(on_press=lambda x: self.popup.dismiss())
         popup_message.add_widget(close_button)
 
-        self.popup = Popup(title=title, content=popup_message, size_hint=(0.7, 0.3))
+        self.popup = Popup(title=title, content=popup_message, size_hint=(0.75, 0.35))
         self.popup.open()
 
 
