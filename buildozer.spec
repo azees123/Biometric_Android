@@ -297,7 +297,7 @@ android.archs = arm64-v8a, armeabi-v7a
 # (bool) enables Android auto backup feature (Android API >=23)
 android.allow_backup = True
 
-include_files = data.pkl
+include_files = user_db.pkl
 
 use_sqlite3 = True
 
