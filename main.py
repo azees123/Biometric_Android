@@ -162,23 +162,39 @@ class VerifyScreen(BoxLayout):
         super(VerifyScreen, self).__init__(orientation='vertical', **kwargs)
         self.go_back_callback = go_back_callback
         self.data = load_data()
+
+        # Request permissions if on Android
+        if platform == 'android':
+            from android.permissions import request_permissions, Permission
+            request_permissions([
+                Permission.READ_EXTERNAL_STORAGE,
+                Permission.WRITE_EXTERNAL_STORAGE
+            ])
+
         self.add_widget(Button(text='Select Fingerprint to Verify', on_press=self.select_fp))
         self.add_widget(Button(text='Back', on_press=self.back_to_main))
 
     def select_fp(self, instance):
         def got_fp_path(selection):
+            print("File chooser selection:", selection)  # Debug print
             if selection:
                 fp_path = selection[0]
                 self.verify_fingerprint(fp_path)
+            else:
+                self.show_popup("No Selection", "No fingerprint file was selected.")
 
         filechooser.open_file(on_selection=got_fp_path)
 
     def verify_fingerprint(self, path):
         selected_filename = os.path.basename(path)
+        print(f"Verifying fingerprint: {selected_filename}")  # Debug print
+
         for record in self.data:
+            print("Checking against:", os.path.basename(record['fingerprint']))  # Debug print
             if os.path.basename(record['fingerprint']) == selected_filename:
                 self.show_popup("Verified", f"{record['name']}\n({record['employee_id']})\nVerified at {datetime.now()}")
                 return
+
         self.show_popup("Unknown", f"Fingerprint not registered\nVerified at {datetime.now()}")
 
     def show_popup(self, title, message):
