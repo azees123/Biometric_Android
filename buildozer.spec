@@ -97,7 +97,8 @@ fullscreen = 1
 # (list) Permissions
 # (See https://python-for-android.readthedocs.io/en/latest/buildoptions/#build-options-1 for all the supported syntaxes and properties)
 #android.permissions = android.permission.INTERNET, (name=android.permission.WRITE_EXTERNAL_STORAGE;maxSdkVersion=18)
-android.permissions = CAMERA, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
+android.permissions = CAMERA, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, USE_BIOMETRIC, USE_FINGERPRINT
+
 
 # (list) features (adds uses-feature -tags to manifest)
 #android.features = android.hardware.usb.host
@@ -294,9 +295,6 @@ android.archs = arm64-v8a, armeabi-v7a
 # (bool) enables Android auto backup feature (Android API >=23)
 android.allow_backup = True
 
-include_files = user_db.pkl
-
-use_sqlite3 = True
 
 # (str) XML file for custom backup rules (see official auto backup documentation)
 # android.backup_rules =
