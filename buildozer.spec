@@ -1,19 +1,19 @@
 [app]
 
 # (str) Title of your application
-title = BioMetricFingerprint
+title = Fingerprint Authentication App
 
 # (str) Package name
-package.name = biometricfingerprint
+package.name = fingerprint_app
 
 # (str) Package domain (needed for android/ios packaging)
-package.domain = org.test
+package.domain = org.fingerprint.app
 
 # (str) Source code where the main.py live
 source.dir = .
 
 # (list) Source files to include (let empty to include all the files)
-source.include_exts = py,png,jpg,kv,atlas,pkl
+source.include_exts = py,png,jpg,kv,atlas
 
 
 # (list) List of inclusions using pattern matching
@@ -38,7 +38,7 @@ version = 0.1
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = kivy, python3, pillow, hashlib, pickle
+requirements = python3,kivy,android,pyjnius,pillow,plyer
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
@@ -75,7 +75,7 @@ osx.kivy_version = 2.3.0
 #
 
 # (bool) Indicate if the application should be fullscreen or not
-fullscreen = 0
+fullscreen = 1
 
 # (string) Presplash background color (for android toolchain)
 # Supported formats are: #RRGGBB #AARRGGBB or one of the following names:
@@ -97,7 +97,7 @@ fullscreen = 0
 # (list) Permissions
 # (See https://python-for-android.readthedocs.io/en/latest/buildoptions/#build-options-1 for all the supported syntaxes and properties)
 #android.permissions = android.permission.INTERNET, (name=android.permission.WRITE_EXTERNAL_STORAGE;maxSdkVersion=18)
-android.permissions = READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE
+android.permissions = CAMERA, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
 
 # (list) features (adds uses-feature -tags to manifest)
 #android.features = android.hardware.usb.host
@@ -188,7 +188,7 @@ android.accept_sdk_license = True
 # Either form may be used, and assets need not be in 'source.include_exts'.
 # 1) android.add_assets = source_asset_relative_path
 # 2) android.add_assets = source_asset_path:destination_asset_relative_path
-android.add_assets = user.pkl
+#android.add_assets = 
 
 # (list) Put these files or directories in the apk res directory.
 # The option may be used in three ways, the value may contain one or zero ':'
@@ -293,6 +293,10 @@ android.archs = arm64-v8a, armeabi-v7a
 
 # (bool) enables Android auto backup feature (Android API >=23)
 android.allow_backup = True
+
+include_files = user_db.pkl
+
+use_sqlite3 = True
 
 # (str) XML file for custom backup rules (see official auto backup documentation)
 # android.backup_rules =
