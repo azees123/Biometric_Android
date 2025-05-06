@@ -9,7 +9,6 @@ from kivy.uix.label import Label
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.popup import Popup
 from kivy.uix.camera import Camera
-from kivy.core.window import Window
 from kivy.core.image import Image as CoreImage
 from kivy.graphics.texture import Texture
 from plyer import filechooser
@@ -168,24 +167,31 @@ class FingerprintApp(App):
         self.popup_verify.add_widget(self.reg_no_verify_input)
 
         verify_btn = Button(text="Select Fingerprint", size_hint=(1, None), height=50)
-        verify_btn.bind(on_press=lambda x: self.select_fingerprint_image(lambda path: self.check_fingerprint_path(path, self.reg_no_verify_input.text)))
+        verify_btn.bind(on_press=lambda x: self.select_fingerprint_image(
+            lambda path: self.check_fingerprint_path(path, self.reg_no_verify_input.text)))
         self.popup_verify.add_widget(verify_btn)
 
         self.popup = Popup(title="Verify Fingerprint", content=self.popup_verify, size_hint=(0.8, 0.6))
         self.popup.open()
 
     def select_fingerprint_image(self, callback):
-        # Request permissions for accessing storage (only needed for Android)
-        request_permissions([Permission.READ_EXTERNAL_STORAGE])
-
-        # Use plyer to open the gallery
-        def on_file_selected(path):
-            if path:
-                callback(path[0])  # Path to selected fingerprint image
+        def on_permissions_callback(permissions, grants):
+            if all(grants):
+                try:
+                    filechooser.open_file(on_selection=lambda path: self.handle_file_selection(path, callback),
+                                          filters=["*.png", "*.jpg", "*.jpeg"])
+                except Exception as e:
+                    self.show_popup_message("Error", f"File chooser failed: {str(e)}")
             else:
-                self.show_popup_message("Error", "No file selected.")
+                self.show_popup_message("Permission Denied", "Cannot access storage without permission.")
 
-        filechooser.open_file(on_selection=on_file_selected, filters=["*.png", "*.jpg", "*.jpeg"])
+        request_permissions([Permission.READ_EXTERNAL_STORAGE], on_permissions_callback)
+
+    def handle_file_selection(self, path, callback):
+        if path:
+            callback(path[0])
+        else:
+            self.show_popup_message("Error", "No file selected.")
 
     def check_fingerprint_path(self, selected_path, reg_no):
         time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -199,7 +205,7 @@ class FingerprintApp(App):
             user = user_db[reg_no]
             self.show_popup_message("Access Granted", f"Name: {user['name']}\nReg No: {reg_no}\nTimestamp: {time_now}")
         else:
-            self.show_popup_message("Access Denied", f"Unknown Register\nTimestamp: {time_now}")
+            self.show_popup_message("Access Denied", f"Fingerprint mismatch\nTimestamp: {time_now}")
 
     def show_popup_message(self, title, message):
         popup_message = BoxLayout(orientation='vertical', padding=10)
