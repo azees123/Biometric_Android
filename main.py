@@ -11,13 +11,12 @@ from kivy.uix.popup import Popup
 from kivy.uix.camera import Camera
 from kivy.core.window import Window
 from kivy.core.image import Image as CoreImage
-from kivy.uix.filechooser import FileChooserIconView
-
-from android.storage import app_storage_path
 from kivy.graphics.texture import Texture
+from plyer import filechooser
+from android.permissions import request_permissions, Permission
 
 user_db = {}
-APP_PATH = app_storage_path()
+APP_PATH = os.path.join(os.path.expanduser("~"), "fingerprint_app")
 os.makedirs(APP_PATH, exist_ok=True)
 DB_FILE = os.path.join(APP_PATH, 'user_db.pkl')
 
@@ -176,25 +175,17 @@ class FingerprintApp(App):
         self.popup.open()
 
     def select_fingerprint_image(self, callback):
-        layout = BoxLayout(orientation='vertical')
-        filechooser = FileChooserIconView()
-        layout.add_widget(filechooser)
+        # Request permissions for accessing storage (only needed for Android)
+        request_permissions([Permission.READ_EXTERNAL_STORAGE])
 
-        select_button = Button(text="Select", size_hint=(1, None), height=50)
-        layout.add_widget(select_button)
-
-        popup = Popup(title="Select Fingerprint Image", content=layout, size_hint=(0.9, 0.9))
-
-        def on_select(instance):
-            selected = filechooser.selection
-            if selected:
-                popup.dismiss()
-                callback(selected[0])
+        # Use plyer to open the gallery
+        def on_file_selected(path):
+            if path:
+                callback(path[0])  # Path to selected fingerprint image
             else:
                 self.show_popup_message("Error", "No file selected.")
 
-        select_button.bind(on_press=on_select)
-        popup.open()
+        filechooser.open_file(on_selection=on_file_selected, filters=["*.png", "*.jpg", "*.jpeg"])
 
     def check_fingerprint_path(self, selected_path, reg_no):
         time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
