@@ -1,3 +1,7 @@
+from datetime import datetime
+import pickle
+import os
+
 from kivy.app import App
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
@@ -5,35 +9,33 @@ from kivy.uix.label import Label
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.popup import Popup
 from kivy.uix.spinner import Spinner
-from datetime import datetime
-import os
-import pickle
+from kivy.uix.camera import Camera
+from kivy.core.image import Image as CoreImage
+
+from kivy.core.window import Window
 from plyer import filechooser
 
-try:
-    from android.storage import app_storage_path
-    APP_PATH = app_storage_path()
-except ImportError:
-    APP_PATH = os.getcwd()
-
-os.makedirs(APP_PATH, exist_ok=True)
-DB_FILE = os.path.join(APP_PATH, 'user_db.pkl')
+from android.storage import app_storage_path
 
 user_db = {}
+APP_PATH = app_storage_path()
+os.makedirs(APP_PATH, exist_ok=True)
+DB_FILE = os.path.join(APP_PATH, 'user_db.pkl')
 
 class FingerprintApp(App):
     def build(self):
         self.load_user_db()
-        self.layout = BoxLayout(orientation='vertical', padding=20, spacing=20)
 
-        self.title_label = Label(text="Fingerprint Authentication System", size_hint=(1, 0.1), font_size='20sp')
+        self.layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
+
+        self.title_label = Label(text="Fingerprint Authentication System", size_hint=(1, 0.1))
         self.layout.add_widget(self.title_label)
 
-        self.register_button = Button(text="Register User", size_hint=(1, 0.1), background_color=(0.3, 0.6, 0.3, 1))
+        self.register_button = Button(text="Register User", size_hint=(1, 0.1))
         self.register_button.bind(on_press=self.register_user)
         self.layout.add_widget(self.register_button)
 
-        self.verify_button = Button(text="Verify Fingerprint", size_hint=(1, 0.1), background_color=(0.3, 0.6, 0.3, 1))
+        self.verify_button = Button(text="Verify Fingerprint", size_hint=(1, 0.1))
         self.verify_button.bind(on_press=self.verify_fingerprint)
         self.layout.add_widget(self.verify_button)
 
@@ -44,12 +46,190 @@ class FingerprintApp(App):
         if os.path.exists(DB_FILE):
             with open(DB_FILE, 'rb') as f:
                 user_db = pickle.load(f)
-        else:
-            user_db = {}
 
     def save_user_db(self):
         with open(DB_FILE, 'wb') as f:
             pickle.dump(user_db, f)
+
+    def save_user_details(self, name, phone, reg_no, photo_path, fingerprint_data, dob):
+        if reg_no in user_db:
+            print("Fingerprint already registered!")
+            return False
+        user_db[reg_no] = {
+            'name': name,
+            'phone': phone,
+            'photo': photo_path,
+            'dob': dob,
+            'fingerprint': fingerprint_data,
+            'verified': False,
+            'registration_timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        print("User details saved successfully.")
+        self.send_registration_message(name, reg_no, user_db[reg_no]['registration_timestamp'])
+        self.save_user_db()
+        return True
+
+    def send_registration_message(self, name, reg_no, timestamp):
+        message = f"User {name} with registration number {reg_no} registered successfully at {timestamp}."
+        print("REGISTRATION SUCCESS MESSAGE:")
+        print(message)
+
+    def send_alert_to_admin(self, name, reg_no, time, registration_timestamp=None):
+        if registration_timestamp:
+            message = f"ALERT: User {name} with registration number {reg_no} tried to verify again at {time}. Registration timestamp: {registration_timestamp}"
+        else:
+            message = f"ALERT: Unregistered fingerprint attempted! Name: {name}, Registration Number: {reg_no}, Time: {time}"
+        print("ALERT SENT TO ADMIN:")
+        print(message)
+
+        popup_layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
+        popup_layout.add_widget(Label(text=message, size_hint=(1, None), height=100))
+        close_button = Button(text="Close", size_hint=(1, None), height=50)
+        close_button.bind(on_press=self.close_alert_popup)
+        popup_layout.add_widget(close_button)
+
+        self.popup = Popup(title="Admin Alert", content=popup_layout, size_hint=(0.8, 0.4), auto_dismiss=True)
+        self.popup.open()
+
+    def close_alert_popup(self, instance):
+        if hasattr(self, 'popup') and self.popup:
+            self.popup.dismiss()
+
+    def capture_fingerprint(self, reg_no):
+        print("Prompting user to select fingerprint image from gallery...")
+        file_paths = filechooser.open_file()
+        if file_paths:
+            return file_paths[0]
+        return None
+
+    def check_fingerprint(self, fingerprint_data, reg_no):
+        if reg_no not in user_db:
+            print("Fingerprint not found in database!")
+            self.send_alert_to_admin("Unknown User", reg_no, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            return False
+
+        if user_db[reg_no]['verified']:
+            self.send_alert_to_admin(user_db[reg_no]['name'], reg_no, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), user_db[reg_no]['registration_timestamp'])
+            return False
+
+        if fingerprint_data == user_db[reg_no]['fingerprint']:
+            user_db[reg_no]['verified'] = True
+            self.save_user_db()
+            print("Fingerprint verified successfully.")
+            return True
+        else:
+            self.send_alert_to_admin(user_db[reg_no]['name'], reg_no, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            return False
+
+    def open_camera(self, name, callback):
+        self.camera_layout = BoxLayout(orientation='vertical')
+        self.camera = Camera(play=True)
+        self.camera.resolution = (640, 480)
+        self.camera_layout.add_widget(self.camera)
+
+        self.capture_button = Button(text="Capture Photo", size_hint=(1, 0.2))
+        self.capture_button.bind(on_press=lambda x: self.capture_photo(name, callback))
+        self.camera_layout.add_widget(self.capture_button)
+
+        self.camera_popup = Popup(title="Capture Photo", content=self.camera_layout, size_hint=(0.9, 0.9))
+        self.camera_popup.open()
+
+    def capture_photo(self, name, callback):
+        texture = self.camera.texture
+        if texture:
+            photo_path = os.path.join(APP_PATH, f"{name}_photo.png")
+            image = CoreImage(texture)
+            image.save(photo_path)
+            print(f"Photo of {name} saved at {photo_path}")
+            self.photo_path = photo_path
+            callback()
+        else:
+            print("Failed to capture photo.")
+        self.camera.play = False
+        self.camera_popup.dismiss()
+
+    def register_user(self, instance):
+        self.popup_register = BoxLayout(orientation='vertical', spacing=10)
+
+        self.name_input = TextInput(hint_text="Enter your name", size_hint=(1, None), height=40)
+        self.phone_input = TextInput(hint_text="Enter your phone number", size_hint=(1, None), height=40)
+        self.reg_no_input = TextInput(hint_text="Enter your registration number", size_hint=(1, None), height=40)
+
+        self.day_spinner = Spinner(text='01', values=[f"{i:02d}" for i in range(1, 32)], size_hint=(1, None), height=40)
+        self.month_spinner = Spinner(text='01', values=[f"{i:02d}" for i in range(1, 13)], size_hint=(1, None), height=40)
+        self.year_spinner = Spinner(text='2000', values=[str(i) for i in range(1960, datetime.now().year + 1)], size_hint=(1, None), height=40)
+
+        self.popup_register.add_widget(self.name_input)
+        self.popup_register.add_widget(self.phone_input)
+        self.popup_register.add_widget(self.reg_no_input)
+        self.popup_register.add_widget(Label(text="Select Date of Birth", size_hint=(1, None), height=30))
+        self.popup_register.add_widget(self.day_spinner)
+        self.popup_register.add_widget(self.month_spinner)
+        self.popup_register.add_widget(self.year_spinner)
+
+        submit_button = Button(text="Continue", size_hint=(1, None), height=50)
+        submit_button.bind(on_press=lambda x: self.capture_photo_and_fingerprint())
+        self.popup_register.add_widget(submit_button)
+
+        self.popup = Popup(title="Register User", content=self.popup_register, size_hint=(0.8, 0.9))
+        self.popup.open()
+
+    def capture_photo_and_fingerprint(self):
+        name = self.name_input.text
+        phone = self.phone_input.text
+        reg_no = self.reg_no_input.text
+        dob = f"{self.day_spinner.text}/{self.month_spinner.text}/{self.year_spinner.text}"
+
+        if reg_no in user_db:
+            self.show_popup_message("Error", "This registration number already exists.")
+            return
+
+        self.popup.dismiss()
+
+        def after_photo():
+            self.select_fingerprint_image(name, phone, reg_no, dob)
+
+        self.open_camera(name, after_photo)
+
+    def select_fingerprint_image(self, name, phone, reg_no, dob):
+        filechooser.open_file(on_selection=lambda selection: self.handle_fingerprint_selection(selection, name, phone, reg_no, dob))
+
+    def handle_fingerprint_selection(self, selection, name, phone, reg_no, dob):
+        if selection:
+            fingerprint_path = selection[0]
+            fingerprint_data = fingerprint_path
+            if self.save_user_details(name, phone, reg_no, self.photo_path, fingerprint_data, dob):
+                self.show_popup_message("Success", f"User {name} registered successfully.")
+        else:
+            self.show_popup_message("Error", "No fingerprint image selected.")
+
+    def verify_fingerprint(self, instance):
+        self.popup_verify = BoxLayout(orientation='vertical', spacing=10)
+
+        self.reg_no_verify_input = TextInput(hint_text="Enter registration number", size_hint=(1, None), height=40)
+        self.popup_verify.add_widget(self.reg_no_verify_input)
+
+        verify_btn = Button(text="Select Fingerprint & Verify", size_hint=(1, None), height=50)
+        verify_btn.bind(on_press=self.perform_fingerprint_verification)
+        self.popup_verify.add_widget(verify_btn)
+
+        self.popup = Popup(title="Verify Fingerprint", content=self.popup_verify, size_hint=(0.8, 0.6))
+        self.popup.open()
+
+    def perform_fingerprint_verification(self, instance):
+        reg_no = self.reg_no_verify_input.text
+
+        def on_fingerprint_selected(paths):
+            if paths:
+                fingerprint_data = paths[0]
+                if self.check_fingerprint(fingerprint_data, reg_no):
+                    self.show_popup_message("Access Granted", "Fingerprint verified successfully!")
+                else:
+                    self.show_popup_message("Access Denied", "Fingerprint verification failed.")
+            else:
+                self.show_popup_message("Error", "No fingerprint selected.")
+
+        filechooser.open_file(on_selection=on_fingerprint_selected)
 
     def show_popup_message(self, title, message):
         popup_message = BoxLayout(orientation='vertical', padding=10)
@@ -61,89 +241,6 @@ class FingerprintApp(App):
         self.popup = Popup(title=title, content=popup_message, size_hint=(0.7, 0.3))
         self.popup.open()
 
-    def register_user(self, instance):
-        self.popup_register = BoxLayout(orientation='vertical', spacing=10)
 
-        self.name_input = TextInput(hint_text="Enter your name", size_hint=(1, None), height=40)
-        self.phone_input = TextInput(hint_text="Enter your phone number", size_hint=(1, None), height=40)
-        self.emp_id_input = TextInput(hint_text="Enter your employee ID", size_hint=(1, None), height=40)
-        self.aadhaar_input = TextInput(hint_text="Enter Aadhaar Number (optional)", size_hint=(1, None), height=40)
-        self.dob_spinner = Spinner(text="DD/MM/YYYY", values=("01/01/1990", "02/02/1991", "03/03/1992", "04/04/1993", "05/05/1999"), size_hint=(1, None), height=40)
-
-        self.popup_register.add_widget(self.name_input)
-        self.popup_register.add_widget(self.phone_input)
-        self.popup_register.add_widget(self.emp_id_input)
-        self.popup_register.add_widget(self.aadhaar_input)
-        self.popup_register.add_widget(self.dob_spinner)
-
-        self.gallery_button = Button(text="Select Fingerprint Image", size_hint=(1, None), height=50)
-        self.gallery_button.bind(on_press=self.select_image)
-        self.popup_register.add_widget(self.gallery_button)
-
-        submit_button = Button(text="Continue", size_hint=(1, None), height=50)
-        submit_button.bind(on_press=self.capture_and_register)
-        self.popup_register.add_widget(submit_button)
-
-        self.popup = Popup(title="Register User", content=self.popup_register, size_hint=(0.8, 0.9))
-        self.popup.open()
-
-    def capture_and_register(self, instance):
-        name = self.name_input.text
-        phone = self.phone_input.text
-        emp_id = self.emp_id_input.text
-        aadhaar = self.aadhaar_input.text
-        dob = self.dob_spinner.text
-
-        if not name or not phone or not emp_id:
-            self.show_popup_message("Error", "Name, Phone, and Employee ID are required.")
-            return
-
-        if emp_id in user_db:
-            self.show_popup_message("Error", "This employee ID already exists.")
-            return
-
-        fingerprint_data = self.fingerprint_image_path if hasattr(self, 'fingerprint_image_path') else None
-
-        user_db[emp_id] = {
-            'name': name,
-            'phone': phone,
-            'aadhaar': aadhaar,
-            'dob': dob,
-            'fingerprint': fingerprint_data,
-            'verified': False,
-            'registration_timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        }
-
-        self.save_user_db()
-        self.show_popup_message("Success", f"User {name} registered successfully.\nTimestamp: {user_db[emp_id]['registration_timestamp']}")
-
-    def select_image(self, instance):
-        filechooser.open_file(on_selection=self.load_image, filters=["*.png", "*.jpg", "*.jpeg"])
-
-    def load_image(self, selection):
-        if selection:
-            image_path = selection[0]
-            self.fingerprint_image_path = image_path
-            self.show_popup_message("Success", f"Fingerprint image selected:\n{image_path}")
-        else:
-            self.show_popup_message("Error", "No image selected.")
-
-    def verify_fingerprint(self, instance):
-        filechooser.open_file(on_selection=self.perform_fingerprint_verification, filters=["*.png", "*.jpg", "*.jpeg"])
-
-    def perform_fingerprint_verification(self, selection):
-        if not selection:
-            self.show_popup_message("Error", "No fingerprint image selected.")
-            return
-
-        selected_fp = selection[0]
-
-        for emp_id, data in user_db.items():
-            if data.get("fingerprint") == selected_fp:
-                self.show_popup_message("Access Granted", f"Fingerprint matched!\nName: {data['name']}\nEmployee ID: {emp_id}\nTimestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-                return
-
-        self.show_popup_message("Access Denied", f"No matching fingerprint found.\nTimestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     FingerprintApp().run()
