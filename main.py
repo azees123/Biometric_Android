@@ -1,144 +1,149 @@
-import kivy
 from kivy.app import App
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.popup import Popup
-from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
+from kivy.uix.label import Label
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.popup import Popup
 from kivy.uix.spinner import Spinner
-from kivy.uix.filechooser import FileChooserIconView
-import pickle
-import os
-import hashlib
 from datetime import datetime
+import os
+import pickle
+from plyer import filechooser
 
-DATA_FILE = "users.pkl"  # Save in current directory
+try:
+    from android.storage import app_storage_path
+    APP_PATH = app_storage_path()
+except ImportError:
+    APP_PATH = os.getcwd()
 
-def hash_image(filepath):
-    with open(filepath, "rb") as f:
-        return hashlib.md5(f.read()).hexdigest()
+os.makedirs(APP_PATH, exist_ok=True)
+DB_FILE = os.path.join(APP_PATH, 'user_db.pkl')
 
-class BimetricApp(BoxLayout):
-    def __init__(self, **kwargs):
-        super().__init__(orientation='vertical', **kwargs)
+user_db = {}
 
-        self.name_input = TextInput(hint_text='Name')
-        self.aadhaar_input = TextInput(hint_text='Aadhaar')
-        self.contact_input = TextInput(hint_text='Contact')
-        self.empid_input = TextInput(hint_text='Employee ID')
+class FingerprintApp(App):
+    def build(self):
+        self.load_user_db()
+        self.layout = BoxLayout(orientation='vertical', padding=20, spacing=20)
 
-        self.day_spinner = Spinner(text='Day', values=[str(i) for i in range(1, 32)])
-        self.month_spinner = Spinner(text='Month', values=[str(i) for i in range(1, 13)])
-        self.year_spinner = Spinner(text='Year', values=[str(y) for y in range(1960, datetime.now().year + 1)])
+        self.title_label = Label(text="Fingerprint Authentication System", size_hint=(1, 0.1), font_size='20sp')
+        self.layout.add_widget(self.title_label)
 
-        self.fingerprint_path = ""
-        self.fingerprint_button = Button(text='Select Fingerprint Image (Gallery)')
-        self.fingerprint_button.bind(on_press=self.select_fingerprint)
+        self.register_button = Button(text="Register User", size_hint=(1, 0.1), background_color=(0.3, 0.6, 0.3, 1))
+        self.register_button.bind(on_press=self.register_user)
+        self.layout.add_widget(self.register_button)
 
-        self.register_btn = Button(text='Register')
-        self.register_btn.bind(on_press=self.register_user)
+        self.verify_button = Button(text="Verify Fingerprint", size_hint=(1, 0.1), background_color=(0.3, 0.6, 0.3, 1))
+        self.verify_button.bind(on_press=self.verify_fingerprint)
+        self.layout.add_widget(self.verify_button)
 
-        self.verify_btn = Button(text='Verify')
-        self.verify_btn.bind(on_press=self.verify_user)
+        return self.layout
 
-        # Add widgets
-        for widget in [self.name_input, self.aadhaar_input, self.contact_input,
-                       self.empid_input, self.day_spinner, self.month_spinner,
-                       self.year_spinner, self.fingerprint_button,
-                       self.register_btn, self.verify_btn]:
-            self.add_widget(widget)
+    def load_user_db(self):
+        global user_db
+        if os.path.exists(DB_FILE):
+            with open(DB_FILE, 'rb') as f:
+                user_db = pickle.load(f)
+        else:
+            user_db = {}
 
-    def select_fingerprint(self, instance):
-        chooser = FileChooserIconView()
-        popup = Popup(title="Choose Fingerprint Image", content=chooser, size_hint=(0.9, 0.9))
+    def save_user_db(self):
+        with open(DB_FILE, 'wb') as f:
+            pickle.dump(user_db, f)
 
-        def on_selection(*args):
-            if chooser.selection:
-                self.fingerprint_path = chooser.selection[0]
-                self.fingerprint_button.text = f"Selected: {os.path.basename(self.fingerprint_path)}"
-                popup.dismiss()
+    def show_popup_message(self, title, message):
+        popup_message = BoxLayout(orientation='vertical', padding=10)
+        popup_message.add_widget(Label(text=message))
+        close_button = Button(text="Close", size_hint=(1, None), height=50)
+        close_button.bind(on_press=lambda x: self.popup.dismiss())
+        popup_message.add_widget(close_button)
 
-        chooser.bind(on_submit=on_selection)
-        popup.open()
+        self.popup = Popup(title=title, content=popup_message, size_hint=(0.7, 0.3))
+        self.popup.open()
 
     def register_user(self, instance):
-        if not self.fingerprint_path:
-            self.show_popup("Error", "Please select a fingerprint image.")
+        self.popup_register = BoxLayout(orientation='vertical', spacing=10)
+
+        self.name_input = TextInput(hint_text="Enter your name", size_hint=(1, None), height=40)
+        self.phone_input = TextInput(hint_text="Enter your phone number", size_hint=(1, None), height=40)
+        self.emp_id_input = TextInput(hint_text="Enter your employee ID", size_hint=(1, None), height=40)
+        self.aadhaar_input = TextInput(hint_text="Enter Aadhaar Number (optional)", size_hint=(1, None), height=40)
+        self.dob_spinner = Spinner(text="DD/MM/YYYY", values=("01/01/1990", "02/02/1991", "03/03/1992", "04/04/1993", "05/05/1999"), size_hint=(1, None), height=40)
+
+        self.popup_register.add_widget(self.name_input)
+        self.popup_register.add_widget(self.phone_input)
+        self.popup_register.add_widget(self.emp_id_input)
+        self.popup_register.add_widget(self.aadhaar_input)
+        self.popup_register.add_widget(self.dob_spinner)
+
+        self.gallery_button = Button(text="Select Fingerprint Image", size_hint=(1, None), height=50)
+        self.gallery_button.bind(on_press=self.select_image)
+        self.popup_register.add_widget(self.gallery_button)
+
+        submit_button = Button(text="Continue", size_hint=(1, None), height=50)
+        submit_button.bind(on_press=self.capture_and_register)
+        self.popup_register.add_widget(submit_button)
+
+        self.popup = Popup(title="Register User", content=self.popup_register, size_hint=(0.8, 0.9))
+        self.popup.open()
+
+    def capture_and_register(self, instance):
+        name = self.name_input.text
+        phone = self.phone_input.text
+        emp_id = self.emp_id_input.text
+        aadhaar = self.aadhaar_input.text
+        dob = self.dob_spinner.text
+
+        if not name or not phone or not emp_id:
+            self.show_popup_message("Error", "Name, Phone, and Employee ID are required.")
             return
 
-        dob = f"{self.day_spinner.text.zfill(2)}/{self.month_spinner.text.zfill(2)}/{self.year_spinner.text}"
-        user_data = {
-            'name': self.name_input.text,
-            'aadhaar': self.aadhaar_input.text,
-            'contact': self.contact_input.text,
+        if emp_id in user_db:
+            self.show_popup_message("Error", "This employee ID already exists.")
+            return
+
+        fingerprint_data = self.fingerprint_image_path if hasattr(self, 'fingerprint_image_path') else None
+
+        user_db[emp_id] = {
+            'name': name,
+            'phone': phone,
+            'aadhaar': aadhaar,
             'dob': dob,
-            'empid': self.empid_input.text,
-            'timestamp': str(datetime.now()),
-            'fingerprint_hash': hash_image(self.fingerprint_path)
+            'fingerprint': fingerprint_data,
+            'verified': False,
+            'registration_timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
 
-        users = self.load_users()
+        self.save_user_db()
+        self.show_popup_message("Success", f"User {name} registered successfully.\nTimestamp: {user_db[emp_id]['registration_timestamp']}")
 
-        users.append(user_data)
-        self.save_users(users)
+    def select_image(self, instance):
+        filechooser.open_file(on_selection=self.load_image, filters=["*.png", "*.jpg", "*.jpeg"])
 
-        self.clear_fields()
-        self.show_popup("Success", f"User {user_data['name']} successfully registered!")
+    def load_image(self, selection):
+        if selection:
+            image_path = selection[0]
+            self.fingerprint_image_path = image_path
+            self.show_popup_message("Success", f"Fingerprint image selected:\n{image_path}")
+        else:
+            self.show_popup_message("Error", "No image selected.")
 
-    def verify_user(self, instance):
-        chooser = FileChooserIconView()
-        popup = Popup(title="Select Fingerprint to Verify", content=chooser, size_hint=(0.9, 0.9))
+    def verify_fingerprint(self, instance):
+        filechooser.open_file(on_selection=self.perform_fingerprint_verification, filters=["*.png", "*.jpg", "*.jpeg"])
 
-        def on_selection(*args):
-            if chooser.selection:
-                selected_fp = chooser.selection[0]
-                popup.dismiss()
-                self.check_fingerprint(selected_fp)
+    def perform_fingerprint_verification(self, selection):
+        if not selection:
+            self.show_popup_message("Error", "No fingerprint image selected.")
+            return
 
-        chooser.bind(on_submit=on_selection)
-        popup.open()
+        selected_fp = selection[0]
 
-    def check_fingerprint(self, filepath):
-        fp_hash = hash_image(filepath)
-        users = self.load_users()
-
-        for user in users:
-            if user['fingerprint_hash'] == fp_hash:
-                self.show_popup("Verified", f"User: {user['name']}\nTime: {datetime.now()}\nEmp ID: {user['empid']}")
+        for emp_id, data in user_db.items():
+            if data.get("fingerprint") == selected_fp:
+                self.show_popup_message("Access Granted", f"Fingerprint matched!\nName: {data['name']}\nEmployee ID: {emp_id}\nTimestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
                 return
 
-        self.show_popup("Unregistered", f"Unknown user\nTime: {datetime.now()}")
+        self.show_popup_message("Access Denied", f"No matching fingerprint found.\nTimestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-    def clear_fields(self):
-        self.name_input.text = ''
-        self.aadhaar_input.text = ''
-        self.contact_input.text = ''
-        self.empid_input.text = ''
-        self.day_spinner.text = 'Day'
-        self.month_spinner.text = 'Month'
-        self.year_spinner.text = 'Year'
-        self.fingerprint_button.text = 'Select Fingerprint Image (Gallery)'
-        self.fingerprint_path = ''
-
-    def show_popup(self, title, message):
-        popup = Popup(title=title,
-                      content=Label(text=message),
-                      size_hint=(0.6, 0.4))
-        popup.open()
-
-    def load_users(self):
-        if os.path.exists(DATA_FILE):
-            with open(DATA_FILE, 'rb') as f:
-                return pickle.load(f)
-        return []
-
-    def save_users(self, users):
-        with open(DATA_FILE, 'wb') as f:
-            pickle.dump(users, f)
-
-class MainApp(App):
-    def build(self):
-        return BimetricApp()
-
-if __name__ == '__main__':
-    MainApp().run()
+if __name__ == "__main__":
+    FingerprintApp().run()
