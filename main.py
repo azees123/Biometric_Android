@@ -13,6 +13,10 @@ from datetime import datetime
 import pickle
 import os
 
+from kivy.clock import Clock
+from kivy.core.window import Window
+Window.softinput_mode = "below_target"
+
 # Android classes for file picker
 Intent = autoclass('android.content.Intent')
 PythonActivity = autoclass('org.kivy.android.PythonActivity')
@@ -204,14 +208,29 @@ class FingerprintApp(App):
             self.show_popup_message("Access Denied", "Fingerprint verification failed.")
 
     def show_popup_message(self, title, message):
-        popup_message = BoxLayout(orientation='vertical', padding=10)
-        popup_message.add_widget(Label(text=message))
-        close_button = Button(text="Close", size_hint=(1, None), height=50)
-        close_button.bind(on_press=lambda x: self.popup.dismiss())
-        popup_message.add_widget(close_button)
+        def open_popup(dt):
+            try:
+                if hasattr(self, 'popup') and self.popup:
+                    self.popup.dismiss()
 
-        self.popup = Popup(title=title, content=popup_message, size_hint=(0.7, 0.3))
-        self.popup.open()
+                popup_message = BoxLayout(orientation='vertical', padding=10, spacing=10)
+                popup_message.add_widget(Label(text=message, size_hint=(1, None), height=80))
+
+                close_button = Button(text="Close", size_hint=(1, None), height=50)
+                close_button.bind(on_press=lambda x: self.popup.dismiss())
+                popup_message.add_widget(close_button)
+
+                self.popup = Popup(
+                    title=title,
+                    content=popup_message,
+                    size_hint=(0.75, 0.4),
+                    auto_dismiss=False
+                )
+                self.popup.open()
+            except Exception as e:
+                print("Popup display error:", e)
+
+        Clock.schedule_once(open_popup, 0.1)
 
 if __name__ == '__main__':
     FingerprintApp().run()
