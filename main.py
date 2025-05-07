@@ -4,20 +4,16 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.label import Label
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.popup import Popup
-from kivy.uix.camera import Camera
 from kivy.core.window import Window
-from kivy.core.image import Image as CoreImage
-from kivy.graphics.texture import Texture
 from android.storage import app_storage_path
 from plyer import filechooser
+from kivy.clock import Clock
+
 import os
 import pickle
 from datetime import datetime
-from kivy.clock import Clock  # Added to manage UI thread timing
 
 user_db = {}
-temporary_fingerprint_data = None
-
 APP_PATH = app_storage_path()
 os.makedirs(APP_PATH, exist_ok=True)
 DB_FILE = os.path.join(APP_PATH, 'user_db.pkl')
@@ -75,15 +71,10 @@ class FingerprintApp(App):
         print(message)
 
     def capture_fingerprint(self, image_path):
-        """Simulate fingerprint capture using an image."""
-        fingerprint_data = self.process_fingerprint_image(image_path)
-        return fingerprint_data
+        return self.process_fingerprint_image(image_path)
 
     def process_fingerprint_image(self, image_path):
-        """Process the fingerprint image. In a real-world case, this would involve image processing or ML models."""
-        # Simulate fingerprint data by creating a hash of the image path (replace with real processing logic)
-        fingerprint_data = f"fingerprint_data_from_{os.path.basename(image_path)}"
-        return fingerprint_data
+        return f"fingerprint_data_from_{os.path.basename(image_path)}"
 
     def send_alert_to_admin(self, name, reg_no, time, registration_timestamp=None):
         if registration_timestamp:
@@ -100,11 +91,12 @@ class FingerprintApp(App):
         popup_layout.add_widget(close_button)
 
         self.popup = Popup(title="Admin Alert", content=popup_layout, size_hint=(0.8, 0.4), auto_dismiss=True)
-        self.popup.open()
+        Clock.schedule_once(lambda dt: self.popup.open(), 0)
 
     def close_alert_popup(self, instance):
         if hasattr(self, 'popup') and self.popup:
             self.popup.dismiss()
+            self.popup = None
 
     def check_fingerprint(self, fingerprint_data, reg_no):
         if reg_no not in user_db:
@@ -144,10 +136,11 @@ class FingerprintApp(App):
         self.popup_register.add_widget(submit_button)
 
         self.popup = Popup(title="Register User", content=self.popup_register, size_hint=(0.8, 0.7))
-        self.popup.open()
+        Clock.schedule_once(lambda dt: self.popup.open(), 0)
 
     def choose_image_for_registration(self):
         self.popup.dismiss()
+        self.popup = None
         self.open_filechooser(self.after_image_selected)
 
     def after_image_selected(self, selected_files):
@@ -177,10 +170,11 @@ class FingerprintApp(App):
         self.popup_verify.add_widget(verify_btn)
 
         self.popup = Popup(title="Verify Fingerprint", content=self.popup_verify, size_hint=(0.8, 0.6))
-        self.popup.open()
+        Clock.schedule_once(lambda dt: self.popup.open(), 0)
 
     def select_fingerprint_image_for_verification(self, instance):
         self.popup.dismiss()
+        self.popup = None
         self.open_filechooser(self.after_image_for_verification)
 
     def after_image_for_verification(self, selected_files):
@@ -196,21 +190,19 @@ class FingerprintApp(App):
                 self.show_popup_message("Access Denied", "Fingerprint verification failed.")
 
     def show_popup_message(self, title, message):
-        # Close the previous popup if it's still open
         if hasattr(self, 'popup') and self.popup:
             self.popup.dismiss()
+            self.popup = None
 
-        # Create a new popup message
         popup_message = BoxLayout(orientation='vertical', padding=10)
         popup_message.add_widget(Label(text=message))
-        
+
         close_button = Button(text="Close", size_hint=(1, None), height=50)
         close_button.bind(on_press=lambda x: self.popup.dismiss())
         popup_message.add_widget(close_button)
 
-        # Create a new popup and open it
         self.popup = Popup(title=title, content=popup_message, size_hint=(0.7, 0.3))
-        self.popup.open()
+        Clock.schedule_once(lambda dt: self.popup.open(), 0)
 
 
 if __name__ == '__main__':
