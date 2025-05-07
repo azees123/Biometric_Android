@@ -13,6 +13,7 @@ from plyer import filechooser
 import os
 import pickle
 from datetime import datetime
+from kivy.clock import Clock  # Added to manage UI thread timing
 
 user_db = {}
 temporary_fingerprint_data = None
@@ -195,12 +196,19 @@ class FingerprintApp(App):
                 self.show_popup_message("Access Denied", "Fingerprint verification failed.")
 
     def show_popup_message(self, title, message):
+        # Close the previous popup if it's still open
+        if hasattr(self, 'popup') and self.popup:
+            self.popup.dismiss()
+
+        # Create a new popup message
         popup_message = BoxLayout(orientation='vertical', padding=10)
         popup_message.add_widget(Label(text=message))
+        
         close_button = Button(text="Close", size_hint=(1, None), height=50)
         close_button.bind(on_press=lambda x: self.popup.dismiss())
         popup_message.add_widget(close_button)
 
+        # Create a new popup and open it
         self.popup = Popup(title=title, content=popup_message, size_hint=(0.7, 0.3))
         self.popup.open()
 
