@@ -3,15 +3,14 @@ from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.label import Label
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.popup import Popup
 from kivy.core.window import Window
 from android.storage import app_storage_path
 from plyer import filechooser
-from kivy.clock import Clock
-
+from plyer import toast
 import os
 import pickle
 from datetime import datetime
+
 
 user_db = {}
 APP_PATH = app_storage_path()
@@ -69,6 +68,7 @@ class FingerprintApp(App):
         message = f"User {name} with registration number {reg_no} registered successfully at {timestamp}."
         print("REGISTRATION SUCCESS MESSAGE:")
         print(message)
+        toast.show(message=message)
 
     def capture_fingerprint(self, image_path):
         return self.process_fingerprint_image(image_path)
@@ -78,25 +78,12 @@ class FingerprintApp(App):
 
     def send_alert_to_admin(self, name, reg_no, time, registration_timestamp=None):
         if registration_timestamp:
-            message = f"ALERT: User {name} with registration number {reg_no} tried to verify again at {time}. Registration timestamp: {registration_timestamp}"
+            message = f"ALERT: {name} ({reg_no}) tried to verify again at {time}. Registered: {registration_timestamp}"
         else:
-            message = f"ALERT: Unregistered fingerprint attempted! Name: {name}, Registration Number: {reg_no}, Time: {time}"
+            message = f"ALERT: Unregistered fingerprint! Name: {name}, Reg No: {reg_no}, Time: {time}"
         print("ALERT SENT TO ADMIN:")
         print(message)
-
-        popup_layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
-        popup_layout.add_widget(Label(text=message, size_hint=(1, None), height=100))
-        close_button = Button(text="Close", size_hint=(1, None), height=50)
-        close_button.bind(on_press=self.close_alert_popup)
-        popup_layout.add_widget(close_button)
-
-        self.popup = Popup(title="Admin Alert", content=popup_layout, size_hint=(0.8, 0.4), auto_dismiss=True)
-        Clock.schedule_once(lambda dt: self.popup.open(), 0)
-
-    def close_alert_popup(self, instance):
-        if hasattr(self, 'popup') and self.popup:
-            self.popup.dismiss()
-            self.popup = None
+        toast.show(message=message)
 
     def check_fingerprint(self, fingerprint_data, reg_no):
         if reg_no not in user_db:
@@ -105,7 +92,8 @@ class FingerprintApp(App):
             return False
 
         if user_db[reg_no]['verified']:
-            self.send_alert_to_admin(user_db[reg_no]['name'], reg_no, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), user_db[reg_no]['registration_timestamp'])
+            self.send_alert_to_admin(user_db[reg_no]['name'], reg_no, datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                     user_db[reg_no]['registration_timestamp'])
             return False
 
         if fingerprint_data == user_db[reg_no]['fingerprint']:
@@ -135,12 +123,12 @@ class FingerprintApp(App):
         submit_button.bind(on_press=lambda x: self.choose_image_for_registration())
         self.popup_register.add_widget(submit_button)
 
-        self.popup = Popup(title="Register User", content=self.popup_register, size_hint=(0.8, 0.7))
-        Clock.schedule_once(lambda dt: self.popup.open(), 0)
+        self.layout.clear_widgets()
+        self.layout.add_widget(self.popup_register)
 
     def choose_image_for_registration(self):
-        self.popup.dismiss()
-        self.popup = None
+        self.layout.clear_widgets()
+        self.build()
         self.open_filechooser(self.after_image_selected)
 
     def after_image_selected(self, selected_files):
@@ -151,13 +139,13 @@ class FingerprintApp(App):
             reg_no = self.reg_no_input.text
 
             if reg_no in user_db:
-                self.show_popup_message("Error", "This registration number already exists.")
+                self.show_popup_message("This registration number already exists.")
                 return
 
             fingerprint_data = self.capture_fingerprint(image_path)
 
             if self.save_user_details(name, phone, reg_no, image_path, fingerprint_data):
-                self.show_popup_message("Success", f"User {name} registered successfully.")
+                self.show_popup_message(f"User {name} registered successfully.")
 
     def verify_fingerprint(self, instance):
         self.popup_verify = BoxLayout(orientation='vertical', spacing=10)
@@ -169,12 +157,12 @@ class FingerprintApp(App):
         verify_btn.bind(on_press=self.select_fingerprint_image_for_verification)
         self.popup_verify.add_widget(verify_btn)
 
-        self.popup = Popup(title="Verify Fingerprint", content=self.popup_verify, size_hint=(0.8, 0.6))
-        Clock.schedule_once(lambda dt: self.popup.open(), 0)
+        self.layout.clear_widgets()
+        self.layout.add_widget(self.popup_verify)
 
     def select_fingerprint_image_for_verification(self, instance):
-        self.popup.dismiss()
-        self.popup = None
+        self.layout.clear_widgets()
+        self.build()
         self.open_filechooser(self.after_image_for_verification)
 
     def after_image_for_verification(self, selected_files):
@@ -185,24 +173,13 @@ class FingerprintApp(App):
             fingerprint_data = self.capture_fingerprint(image_path)
 
             if self.check_fingerprint(fingerprint_data, reg_no):
-                self.show_popup_message("Access Granted", "Fingerprint verified successfully!")
+                self.show_popup_message("Fingerprint verified successfully!")
             else:
-                self.show_popup_message("Access Denied", "Fingerprint verification failed.")
+                self.show_popup_message("Fingerprint verification failed.")
 
-    def show_popup_message(self, title, message):
-        if hasattr(self, 'popup') and self.popup:
-            self.popup.dismiss()
-            self.popup = None
-
-        popup_message = BoxLayout(orientation='vertical', padding=10)
-        popup_message.add_widget(Label(text=message))
-
-        close_button = Button(text="Close", size_hint=(1, None), height=50)
-        close_button.bind(on_press=lambda x: self.popup.dismiss())
-        popup_message.add_widget(close_button)
-
-        self.popup = Popup(title=title, content=popup_message, size_hint=(0.7, 0.3))
-        Clock.schedule_once(lambda dt: self.popup.open(), 0)
+    def show_popup_message(self, message):
+        print("TOAST:", message)
+        toast.show(message=message)
 
 
 if __name__ == '__main__':
