@@ -1,17 +1,18 @@
-from datetime import datetime
-import pickle
-import os
-
 from kivy.app import App
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.label import Label
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.popup import Popup
+from kivy.uix.camera import Camera
+from kivy.core.window import Window
 from kivy.core.image import Image as CoreImage
-
-from plyer import filechooser
+from kivy.graphics.texture import Texture
 from android.storage import app_storage_path
+from plyer import filechooser
+import os
+import pickle
+from datetime import datetime
 
 user_db = {}
 temporary_fingerprint_data = None
@@ -19,6 +20,7 @@ temporary_fingerprint_data = None
 APP_PATH = app_storage_path()
 os.makedirs(APP_PATH, exist_ok=True)
 DB_FILE = os.path.join(APP_PATH, 'user_db.pkl')
+
 
 class FingerprintApp(App):
     def build(self):
@@ -71,8 +73,16 @@ class FingerprintApp(App):
         print("REGISTRATION SUCCESS MESSAGE:")
         print(message)
 
-    def capture_fingerprint(self, reg_no):
-        return f"fingerprint_{reg_no}_data"
+    def capture_fingerprint(self, image_path):
+        """Simulate fingerprint capture using an image."""
+        fingerprint_data = self.process_fingerprint_image(image_path)
+        return fingerprint_data
+
+    def process_fingerprint_image(self, image_path):
+        """Process the fingerprint image. In a real-world case, this would involve image processing or ML models."""
+        # Simulate fingerprint data by creating a hash of the image path (replace with real processing logic)
+        fingerprint_data = f"fingerprint_data_from_{os.path.basename(image_path)}"
+        return fingerprint_data
 
     def send_alert_to_admin(self, name, reg_no, time, registration_timestamp=None):
         if registration_timestamp:
@@ -114,25 +124,8 @@ class FingerprintApp(App):
             self.send_alert_to_admin(user_db[reg_no]['name'], reg_no, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             return False
 
-    def choose_file(self, instance):
-        filechooser.open_file(on_selection=self.selected)
-
-    def selected(self, selection):
-        if selection:
-            print(f"Selected file: {selection[0]}")
-            # After selecting the file, use this file for verification
-            fingerprint_data = self.load_fingerprint_from_file(selection[0])
-            reg_no = self.reg_no_verify_input.text
-            if self.check_fingerprint(fingerprint_data, reg_no):
-                self.show_popup_message("Access Granted", "Fingerprint verified successfully!")
-            else:
-                self.show_popup_message("Access Denied", "Fingerprint verification failed.")
-        else:
-            print("No file selected.")
-
-    def load_fingerprint_from_file(self, file_path):
-        # Assuming the fingerprint image is being processed in some way, for now, just returning the file name
-        return file_path
+    def open_filechooser(self, callback):
+        filechooser.open_file(on_selection=callback)
 
     def register_user(self, instance):
         self.popup_register = BoxLayout(orientation='vertical', spacing=10)
@@ -146,29 +139,31 @@ class FingerprintApp(App):
         self.popup_register.add_widget(self.reg_no_input)
 
         submit_button = Button(text="Continue", size_hint=(1, None), height=50)
-        submit_button.bind(on_press=lambda x: self.capture_and_register())
+        submit_button.bind(on_press=lambda x: self.choose_image_for_registration())
         self.popup_register.add_widget(submit_button)
 
         self.popup = Popup(title="Register User", content=self.popup_register, size_hint=(0.8, 0.7))
         self.popup.open()
 
-    def capture_and_register(self):
-        name = self.name_input.text
-        phone = self.phone_input.text
-        reg_no = self.reg_no_input.text
-
-        if reg_no in user_db:
-            self.show_popup_message("Error", "This registration number already exists.")
-            return
-
+    def choose_image_for_registration(self):
         self.popup.dismiss()
+        self.open_filechooser(self.after_image_selected)
 
-        def after_photo():
-            fingerprint_data = self.capture_fingerprint(reg_no)
-            if self.save_user_details(name, phone, reg_no, self.photo_path, fingerprint_data):
+    def after_image_selected(self, selected_files):
+        if selected_files:
+            image_path = selected_files[0]
+            name = self.name_input.text
+            phone = self.phone_input.text
+            reg_no = self.reg_no_input.text
+
+            if reg_no in user_db:
+                self.show_popup_message("Error", "This registration number already exists.")
+                return
+
+            fingerprint_data = self.capture_fingerprint(image_path)
+
+            if self.save_user_details(name, phone, reg_no, image_path, fingerprint_data):
                 self.show_popup_message("Success", f"User {name} registered successfully.")
-
-        self.open_camera(name, after_photo)
 
     def verify_fingerprint(self, instance):
         self.popup_verify = BoxLayout(orientation='vertical', spacing=10)
@@ -176,12 +171,28 @@ class FingerprintApp(App):
         self.reg_no_verify_input = TextInput(hint_text="Enter registration number", size_hint=(1, None), height=40)
         self.popup_verify.add_widget(self.reg_no_verify_input)
 
-        choose_file_button = Button(text="Choose Fingerprint File", size_hint=(1, None), height=50)
-        choose_file_button.bind(on_press=self.choose_file)
-        self.popup_verify.add_widget(choose_file_button)
+        verify_btn = Button(text="Verify", size_hint=(1, None), height=50)
+        verify_btn.bind(on_press=self.select_fingerprint_image_for_verification)
+        self.popup_verify.add_widget(verify_btn)
 
         self.popup = Popup(title="Verify Fingerprint", content=self.popup_verify, size_hint=(0.8, 0.6))
         self.popup.open()
+
+    def select_fingerprint_image_for_verification(self, instance):
+        self.popup.dismiss()
+        self.open_filechooser(self.after_image_for_verification)
+
+    def after_image_for_verification(self, selected_files):
+        if selected_files:
+            image_path = selected_files[0]
+            reg_no = self.reg_no_verify_input.text
+
+            fingerprint_data = self.capture_fingerprint(image_path)
+
+            if self.check_fingerprint(fingerprint_data, reg_no):
+                self.show_popup_message("Access Granted", "Fingerprint verified successfully!")
+            else:
+                self.show_popup_message("Access Denied", "Fingerprint verification failed.")
 
     def show_popup_message(self, title, message):
         popup_message = BoxLayout(orientation='vertical', padding=10)
@@ -192,6 +203,7 @@ class FingerprintApp(App):
 
         self.popup = Popup(title=title, content=popup_message, size_hint=(0.7, 0.3))
         self.popup.open()
+
 
 if __name__ == '__main__':
     FingerprintApp().run()
