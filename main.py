@@ -3,6 +3,7 @@ from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.label import Label
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.scrollview import ScrollView
 from kivy.core.window import Window
 from android.storage import app_storage_path
 from plyer import filechooser
@@ -11,7 +12,6 @@ import pickle
 from datetime import datetime
 import platform
 
-# Safe import for toast
 try:
     from plyer import toast
 except:
@@ -27,20 +27,26 @@ class FingerprintApp(App):
     def build(self):
         self.load_user_db()
 
-        self.layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
+        self.main_layout = BoxLayout(orientation='vertical')
+        self.scroll = ScrollView()
+        self.layout = BoxLayout(orientation='vertical', padding=10, spacing=10, size_hint_y=None)
+        self.layout.bind(minimum_height=self.layout.setter('height'))
 
-        self.title_label = Label(text="Fingerprint Authentication System", size_hint=(1, 0.1))
+        self.title_label = Label(text="Fingerprint Authentication System", size_hint=(1, None), height=50)
         self.layout.add_widget(self.title_label)
 
-        self.register_button = Button(text="Register User", size_hint=(1, 0.1))
+        self.register_button = Button(text="Register User", size_hint=(1, None), height=50)
         self.register_button.bind(on_press=self.register_user)
         self.layout.add_widget(self.register_button)
 
-        self.verify_button = Button(text="Verify Fingerprint", size_hint=(1, 0.1))
+        self.verify_button = Button(text="Verify Fingerprint", size_hint=(1, None), height=50)
         self.verify_button.bind(on_press=self.verify_fingerprint)
         self.layout.add_widget(self.verify_button)
 
-        return self.layout
+        self.scroll.add_widget(self.layout)
+        self.main_layout.add_widget(self.scroll)
+
+        return self.main_layout
 
     def load_user_db(self):
         global user_db
@@ -51,6 +57,16 @@ class FingerprintApp(App):
     def save_user_db(self):
         with open(DB_FILE, 'wb') as f:
             pickle.dump(user_db, f)
+
+    def show_popup_message(self, message):
+        print(f"TOAST: {message}")
+        if toast and platform.system() == 'Android':
+            toast.show(message=message)
+        else:
+            print(f"[INFO]: {message}")
+
+    def capture_fingerprint(self, image_path):
+        return f"fingerprint_data_from_{os.path.basename(image_path)}"
 
     def save_user_details(self, name, phone, reg_no, photo_path, fingerprint_data):
         if reg_no in user_db:
@@ -67,9 +83,6 @@ class FingerprintApp(App):
         self.save_user_db()
         self.show_popup_message(f"User {name} registered successfully.")
         return True
-
-    def capture_fingerprint(self, image_path):
-        return f"fingerprint_data_from_{os.path.basename(image_path)}"
 
     def send_alert_to_admin(self, name, reg_no, time, registration_timestamp=None):
         if registration_timestamp:
@@ -102,6 +115,8 @@ class FingerprintApp(App):
 
     def register_user(self, instance):
         self.layout.clear_widgets()
+        self.layout.add_widget(Label(text="Register User", size_hint=(1, None), height=50))
+
         self.name_input = TextInput(hint_text="Enter name", size_hint=(1, None), height=40)
         self.phone_input = TextInput(hint_text="Enter phone", size_hint=(1, None), height=40)
         self.reg_no_input = TextInput(hint_text="Enter registration number", size_hint=(1, None), height=40)
@@ -127,6 +142,8 @@ class FingerprintApp(App):
 
     def verify_fingerprint(self, instance):
         self.layout.clear_widgets()
+        self.layout.add_widget(Label(text="Verify Fingerprint", size_hint=(1, None), height=50))
+
         self.reg_no_verify_input = TextInput(hint_text="Enter registration number", size_hint=(1, None), height=40)
         verify_button = Button(text="Choose Fingerprint Image", size_hint=(1, None), height=50)
         verify_button.bind(on_press=self.select_fingerprint_image_for_verification)
@@ -143,13 +160,6 @@ class FingerprintApp(App):
             reg_no = self.reg_no_verify_input.text
             fingerprint_data = self.capture_fingerprint(image_path)
             self.check_fingerprint(fingerprint_data, reg_no)
-
-    def show_popup_message(self, message):
-        print(f"TOAST: {message}")
-        if toast and platform.system() == 'Android':
-            toast.show(message=message)
-        else:
-            print(f"[INFO]: {message}")
 
 
 if __name__ == '__main__':
