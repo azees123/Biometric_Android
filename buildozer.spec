@@ -13,7 +13,7 @@ package.domain = org.fingerprint.app
 source.dir = .
 
 # (list) Source files to include (let empty to include all the files)
-source.include_exts = py,png,jpg,kv,atlas,pkl
+source.include_exts = py,png,jpg,pkl
 
 
 # (list) List of inclusions using pattern matching
@@ -97,7 +97,7 @@ fullscreen = 1
 # (list) Permissions
 # (See https://python-for-android.readthedocs.io/en/latest/buildoptions/#build-options-1 for all the supported syntaxes and properties)
 #android.permissions = android.permission.INTERNET, (name=android.permission.WRITE_EXTERNAL_STORAGE;maxSdkVersion=18)
-android.permissions = CAMERA, READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,INTERNET
+android.permissions = android.permission.CAMERA, android.permission.READ_EXTERNAL_STORAGE, android.permission.WRITE_EXTERNAL_STORAGE
 
 
 # (list) features (adds uses-feature -tags to manifest)
