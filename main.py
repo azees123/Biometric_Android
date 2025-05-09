@@ -25,7 +25,6 @@ DB_FILE = os.path.join(APP_PATH, 'user_db.pkl')
 
 user_db = {}
 
-
 class FingerprintApp(App):
     def build(self):
         self.load_user_db()
@@ -221,9 +220,9 @@ class FingerprintApp(App):
 
         def on_fingerprint_selected(fingerprint_data):
             if self.check_fingerprint(fingerprint_data, reg_no):
-                self.show_popup_message("Access Granted", "Fingerprint verified successfully!")
+                self.show_popup_message("Access Granted", f"User Verified: {user_db[reg_no]['name']} \nRegistration Number: {reg_no} \nTimestamp: {user_db[reg_no]['registration_timestamp']}")
             else:
-                self.show_popup_message("Access Denied", "Fingerprint verification failed.")
+                self.show_popup_message("Access Denied", "Fingerprint verification failed. Unknown user.")
 
         self.capture_fingerprint(reg_no, on_fingerprint_selected)
 
@@ -236,7 +235,6 @@ class FingerprintApp(App):
 
         self.popup = Popup(title=title, content=popup_message, size_hint=(0.7, 0.3))
         self.popup.open()
-
 
 if __name__ == '__main__':
     FingerprintApp().run()
