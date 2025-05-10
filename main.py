@@ -12,6 +12,7 @@ from plyer import filechooser
 from kivy.utils import platform
 
 # Handle permissions on Android
+
 if platform == 'android':
     from android.permissions import request_permissions, Permission
     request_permissions([Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE])
@@ -22,12 +23,12 @@ def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        emp_id TEXT UNIQUE,
-        phone TEXT,
-        fingerprint_path TEXT
-    )''')
+                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 name TEXT,
+                 emp_id TEXT UNIQUE,
+                 phone TEXT,
+                 fingerprint_path TEXT
+             )''')
     conn.commit()
     conn.close()
 
@@ -36,17 +37,17 @@ class FingerprintApp(App):
         init_db()
         self.fingerprint_path = None
 
-        layout = BoxLayout(orientation='vertical', padding=20, spacing=20)
+    layout = BoxLayout(orientation='vertical', padding=20, spacing=20)
 
-        register_btn = Button(text="Register", size_hint=(1, 0.2))
-        register_btn.bind(on_press=self.open_register_popup)
-        layout.add_widget(register_btn)
+    register_btn = Button(text="Register", size_hint=(1, 0.2))
+    register_btn.bind(on_press=self.open_register_popup)
+    layout.add_widget(register_btn)
 
-        verify_btn = Button(text="Verify", size_hint=(1, 0.2))
-        verify_btn.bind(on_press=self.open_verify_popup)
-        layout.add_widget(verify_btn)
+    verify_btn = Button(text="Verify", size_hint=(1, 0.2))
+    verify_btn.bind(on_press=self.open_verify_popup)
+    layout.add_widget(verify_btn)
 
-        return layout
+    return layout
 
     def open_register_popup(self, instance):
         self.reg_layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
@@ -70,12 +71,13 @@ class FingerprintApp(App):
         self.popup.open()
 
     def select_fingerprint(self, instance):
-        filechooser.open_file(on_selection=self.set_fingerprint_path)
+        filechooser.open_file(on_selection=self.set_fingerprint_path, filters=["*.png", "*.jpg", "*.jpeg", "*.bmp"])
 
     def set_fingerprint_path(self, selection):
         if selection:
             self.fingerprint_path = selection[0]
             self.select_fp_btn.text = f"Selected: {os.path.basename(self.fingerprint_path)}"
+            print(f"Fingerprint selected: {self.fingerprint_path}")  # DEBUG
 
     def register_user(self, instance):
         name = self.name_input.text.strip()
@@ -99,16 +101,19 @@ class FingerprintApp(App):
             self.show_popup("Error", "Employee ID already exists.")
 
     def open_verify_popup(self, instance):
-        filechooser.open_file(on_selection=self.verify_fingerprint)
+        print("Verify button clicked")  # DEBUG
+        filechooser.open_file(on_selection=self.verify_fingerprint, filters=["*.png", "*.jpg", "*.jpeg", "*.bmp"])
 
     def verify_fingerprint(self, selection):
         try:
+            print("verify_fingerprint called with selection:", selection)  # DEBUG
+
             if not selection:
-                print("No file selected.")
+                self.show_popup("Error", "No file selected.")
                 return
 
             selected_fp = os.path.basename(selection[0])
-            print(f"Selected fingerprint file: {selected_fp}")
+            print(f"Selected fingerprint file: {selected_fp}")  # DEBUG
 
             conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
@@ -118,20 +123,18 @@ class FingerprintApp(App):
 
             for user in users:
                 stored_fp = os.path.basename(user[2])
-                print(f"Checking against stored: {stored_fp}")
+                print(f"Comparing with stored fingerprint: {stored_fp}")  # DEBUG
                 if stored_fp == selected_fp:
                     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     msg = f"Verified!\nName: {user[0]}\nEmp ID: {user[1]}\nTime: {timestamp}"
-                    print("Match found!")
                     self.show_popup("Access Granted", msg)
                     return
 
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            print("No match found.")
             self.show_popup("Access Denied", f"Unknown fingerprint.\nTime: {timestamp}")
 
         except Exception as e:
-            print("Error during verification:", str(e))
+            print("Error during verification:", str(e))  # DEBUG
             self.show_popup("Error", f"An error occurred:\n{str(e)}")
 
     def show_popup(self, title, message):
@@ -144,5 +147,5 @@ class FingerprintApp(App):
         close_btn.bind(on_press=popup.dismiss)
         popup.open()
 
-if __name__ == '__main__':
-    FingerprintApp().run()
+if **name** == '**main**':
+FingerprintApp().run()
