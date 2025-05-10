@@ -49,6 +49,10 @@ class FingerprintApp(App):
         verify_btn.bind(on_press=self.open_verify_popup)
         layout.add_widget(verify_btn)
 
+        # Label for displaying verification result
+        self.result_label = Label(text="Verification Status will be shown here.", size_hint=(1, 0.1))
+        layout.add_widget(self.result_label)
+
         return layout
 
     def open_register_popup(self, instance):
@@ -104,18 +108,14 @@ class FingerprintApp(App):
 
     def open_verify_popup(self, instance):
         # Show a pop-up before starting the verification process
-        self.show_popup("Fingerprint Verification", "Please select a fingerprint for verification.")
-        
+        self.result_label.text = "Verifying fingerprint, please wait..."
         # Open file chooser to allow the user to select a fingerprint image for verification
-        print("Verify button clicked")  # DEBUG
         filechooser.open_file(on_selection=self.verify_fingerprint, filters=["*.png", "*.jpg", "*.jpeg", "*.bmp"])
 
     def verify_fingerprint(self, selection):
         try:
-            print("verify_fingerprint called with selection:", selection)  # DEBUG
-
             if not selection:
-                self.show_popup("Error", "No file selected.")
+                self.result_label.text = "No file selected. Please select a fingerprint."
                 return
 
             selected_fp = os.path.basename(selection[0])
@@ -127,21 +127,24 @@ class FingerprintApp(App):
             users = c.fetchall()
             conn.close()
 
+            matched_user = None
             for user in users:
                 stored_fp = os.path.basename(user[2])
                 print(f"Comparing with stored fingerprint: {stored_fp}")  # DEBUG
                 if stored_fp == selected_fp:
-                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    msg = f"Verified!\nName: {user[0]}\nEmp ID: {user[1]}\nTime: {timestamp}"
-                    self.show_popup("Access Granted", msg)
-                    return
+                    matched_user = user
+                    break
 
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            self.show_popup("Access Denied", f"Unknown fingerprint.\nTime: {timestamp}")
+            if matched_user:
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                self.result_label.text = f"Access Granted!\nName: {matched_user[0]}\nEmp ID: {matched_user[1]}\nTime: {timestamp}"
+            else:
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                self.result_label.text = f"Access Denied.\nUnknown fingerprint.\nTime: {timestamp}"
 
         except Exception as e:
+            self.result_label.text = f"An error occurred: {str(e)}"
             print("Error during verification:", str(e))  # DEBUG
-            self.show_popup("Error", f"An error occurred:\n{str(e)}")
 
     def show_popup(self, title, message):
         layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
