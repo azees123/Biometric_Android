@@ -12,7 +12,6 @@ from plyer import filechooser
 from kivy.utils import platform
 
 # Handle permissions on Android
-
 if platform == 'android':
     from android.permissions import request_permissions, Permission
     request_permissions([Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE])
@@ -37,17 +36,20 @@ class FingerprintApp(App):
         init_db()
         self.fingerprint_path = None
 
-    layout = BoxLayout(orientation='vertical', padding=20, spacing=20)
+        # Create the main layout
+        layout = BoxLayout(orientation='vertical', padding=20, spacing=20)
 
-    register_btn = Button(text="Register", size_hint=(1, 0.2))
-    register_btn.bind(on_press=self.open_register_popup)
-    layout.add_widget(register_btn)
+        # Register button
+        register_btn = Button(text="Register", size_hint=(1, 0.2))
+        register_btn.bind(on_press=self.open_register_popup)
+        layout.add_widget(register_btn)
 
-    verify_btn = Button(text="Verify", size_hint=(1, 0.2))
-    verify_btn.bind(on_press=self.open_verify_popup)
-    layout.add_widget(verify_btn)
+        # Verify button
+        verify_btn = Button(text="Verify", size_hint=(1, 0.2))
+        verify_btn.bind(on_press=self.open_verify_popup)
+        layout.add_widget(verify_btn)
 
-    return layout
+        return layout
 
     def open_register_popup(self, instance):
         self.reg_layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
@@ -101,6 +103,10 @@ class FingerprintApp(App):
             self.show_popup("Error", "Employee ID already exists.")
 
     def open_verify_popup(self, instance):
+        # Show a pop-up before starting the verification process
+        self.show_popup("Fingerprint Verification", "Please select a fingerprint for verification.")
+        
+        # Open file chooser to allow the user to select a fingerprint image for verification
         print("Verify button clicked")  # DEBUG
         filechooser.open_file(on_selection=self.verify_fingerprint, filters=["*.png", "*.jpg", "*.jpeg", "*.bmp"])
 
@@ -147,5 +153,5 @@ class FingerprintApp(App):
         close_btn.bind(on_press=popup.dismiss)
         popup.open()
 
-if **name** == '**main**':
-FingerprintApp().run()
+if __name__ == '__main__':
+    FingerprintApp().run()
